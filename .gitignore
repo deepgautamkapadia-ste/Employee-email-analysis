@@ -1,0 +1,20 @@
+# Secrets
+.env
+.env.*
+*.key
+
+# Python cache / virtual env
+__pycache__/
+.venv/
+venv/
+env/
+
+# Generated data and plots
+labeled_data.csv
+monthly_scores.csv
+visualizations/
+
+# Editor / OS noise
+.vscode/
+Thumbs.db
+*.pyc
