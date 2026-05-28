@@ -62,6 +62,8 @@ If you want to override the local model, set:
 setx HF_MODEL_NAME "your-local-model-name"
 ```
 
+Task 1 now checkpoints to `labeled_data.csv` as it runs and can resume from an interrupted run with `--resume`.
+
 ## How To Run
 
 Run the scripts in this order:
@@ -69,7 +71,7 @@ Run the scripts in this order:
 ### 1. Label sentiment
 
 ```bash
-python task1_sentiment_labeling.py --input "test(in).csv" --output "labeled_data.csv"
+python task1_sentiment_labeling.py --input "test(in).csv" --output "labeled_data.csv" --provider local --resume --checkpoint-every 50
 ```
 
 To force the local transformer path explicitly:
@@ -83,6 +85,8 @@ If you want to use the OpenAI API instead:
 ```bash
 python task1_sentiment_labeling.py --provider openai --openai-model "gpt-4o-mini"
 ```
+
+For long runs, keep `--resume` enabled. The script rewrites `labeled_data.csv` every `--checkpoint-every` rows so you can rerun it after interruptions without losing progress.
 
 ### 2. Run EDA
 
@@ -155,37 +159,44 @@ Task 1 now defaults to a local Hugging Face causal model and uses the exact chat
 
 ## Results
 
-### Top 3 Positive Employees
+### Latest Run Snapshot
 
-| Month | Employee | Score |
-|---|---:|---:|
-| [FILL IN] | [FILL IN] | [FILL IN] |
-| [FILL IN] | [FILL IN] | [FILL IN] |
-| [FILL IN] | [FILL IN] | [FILL IN] |
+- Labeled rows: `2,191`
+- Sentiment distribution: `1,480 Positive`, `421 Neutral`, `290 Negative`
+- Flight-risk employees: none met the 4-negative-messages-in-30-days threshold
+- Predictive model: `MSE = 1.4636`, `MAE = 0.9928`, `R-squared = 0.4674`
 
-### Top 3 Negative Employees
+### Top 3 Positive Employees Overall
 
-| Month | Employee | Score |
-|---|---:|---:|
-| [FILL IN] | [FILL IN] | [FILL IN] |
-| [FILL IN] | [FILL IN] | [FILL IN] |
-| [FILL IN] | [FILL IN] | [FILL IN] |
+| Employee | Total Monthly Score |
+|---|---:|
+| `sally.beck@enron.com` | `63` |
+| `lydia.delgado@enron.com` | `60` |
+| `johnny.palmer@enron.com` | `50` |
+
+### Top 3 Negative Employees Overall
+
+| Employee | Total Monthly Score |
+|---|---:|
+| `rhonda.denton@enron.com` | `33` |
+| `don.baughman@enron.com` | `36` |
+| `john.arnold@enron.com` | `40` |
 
 ### Flagged Flight Risks
 
-- [FILL IN]
+- None in the latest run
 
 ## Key Insights
 
-- [FILL IN: e.g., which months had the highest volume of negative messages]
-- [FILL IN: e.g., whether sentiment trends changed over time]
-- [FILL IN: e.g., which employees or teams need attention]
+- The latest run produced a strong positive skew overall, with far more positive than negative labels.
+- Negative sentiment was concentrated enough to be useful for monthly scoring, but not enough to trigger the flight-risk rule.
+- The month-by-month ranking and plots are the main artifacts to review for operational follow-up.
 
 ## Recommendations
 
-- [FILL IN: e.g., coach flagged employees with repeated negative bursts]
-- [FILL IN: e.g., review high-volume negative months for root causes]
-- [FILL IN: e.g., compare monthly score trends with team events or policy changes]
+- Review the months with the lowest monthly scores and compare them with team events or organizational changes.
+- Use the ranking plots to identify consistently positive contributors and consistently strained months.
+- If you need more sensitive flight-risk detection, lower the threshold or widen the rolling window logic.
 
 ## Optional Improvements
 
@@ -193,3 +204,4 @@ Task 1 now defaults to a local Hugging Face causal model and uses the exact chat
 - Add caching to disk for repeated message texts.
 - Add more features for predictive modeling, such as response time or communication network metrics.
 - Replace the LLM sentiment step with a local transformer pipeline when API access is not desired.
+- Add a progress log so long Task 1 runs can be monitored outside the console.

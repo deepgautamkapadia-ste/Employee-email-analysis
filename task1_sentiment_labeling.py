@@ -212,6 +212,9 @@ def label_messages(
     openai_model_name: str,
     delay_seconds: float,
     max_retries: int,
+    checkpoint_path: str | None = None,
+    checkpoint_every: int = 25,
+    resume_from_existing: bool = False,
 ) -> pd.Series:
     """
     Label each message while caching duplicate messages so the same text is not
@@ -223,7 +226,7 @@ def label_messages(
     """
 
     cache: Dict[str, str] = {}
-    labels = []
+    labels = [""] * len(df)
     local_classifier: Optional[LocalLLMClassifier] = None
     client: Optional["OpenAI"] = None
 
@@ -245,10 +248,30 @@ def label_messages(
 
     combined_text = combine_text_columns(df[subject_column], df[body_column])
 
-    for idx, message in enumerate(combined_text):
-        message = str(message).strip()
+    start_idx = 0
+    if resume_from_existing and checkpoint_path and os.path.exists(checkpoint_path):
+        try:
+            existing_df = pd.read_csv(checkpoint_path)
+            if len(existing_df) == len(df) and "Sentiment_Label" in existing_df.columns:
+                existing_labels = existing_df["Sentiment_Label"].fillna("").astype(str).tolist()
+                if len(existing_labels) == len(df):
+                    labels = existing_labels
+                    start_idx = sum(1 for label in labels if str(label).strip() in VALID_LABELS)
+                    print(f"Resuming from existing checkpoint: {checkpoint_path} (starting at row {start_idx + 1})")
+        except Exception as exc:
+            print(f"Could not resume from existing checkpoint. Starting fresh. Error: {exc}")
+
+    def write_checkpoint() -> None:
+        if not checkpoint_path:
+            return
+        checkpoint_df = df.copy()
+        checkpoint_df["Sentiment_Label"] = labels
+        checkpoint_df.to_csv(checkpoint_path, index=False)
+
+    for idx in range(start_idx, len(combined_text)):
+        message = str(combined_text.iloc[idx]).strip()
         if not message:
-            labels.append("Neutral")
+            labels[idx] = "Neutral"
             continue
 
         if message not in cache:
@@ -281,17 +304,21 @@ def label_messages(
                 cache[message] = classify_sentiment_with_openai(
                     client=client,
                     message=message,
-                    model=openai_model_name,
-                    max_retries=max_retries,
+                        model=openai_model_name,
+                        max_retries=max_retries,
                 )
             if delay_seconds > 0:
                 time.sleep(delay_seconds)
 
-        labels.append(cache[message])
+        labels[idx] = cache[message]
 
         if (idx + 1) % 25 == 0:
             print(f"Processed {idx + 1} messages...")
+        if checkpoint_path and (idx + 1) % checkpoint_every == 0:
+            write_checkpoint()
+            print(f"Checkpoint saved to {checkpoint_path}")
 
+    write_checkpoint()
     return pd.Series(labels, index=df.index, name="Sentiment_Label")
 
 
@@ -342,6 +369,17 @@ def parse_args() -> argparse.Namespace:
         default=5,
         help="Maximum retry attempts for transient API failures.",
     )
+    parser.add_argument(
+        "--checkpoint-every",
+        type=int,
+        default=25,
+        help="Write the output CSV every N rows so long runs can resume.",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from an existing output CSV if it already exists.",
+    )
     return parser.parse_args()
 
 
@@ -383,6 +421,9 @@ def main() -> None:
         openai_model_name=args.openai_model,
         delay_seconds=args.delay_seconds,
         max_retries=args.max_retries,
+        checkpoint_path=args.output,
+        checkpoint_every=args.checkpoint_every,
+        resume_from_existing=args.resume,
     )
 
     output_path = args.output

@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 Write-Host "Running Task 1: Sentiment labeling"
-python task1_sentiment_labeling.py
+python task1_sentiment_labeling.py --provider local --resume --checkpoint-every 50
 
 Write-Host "Running Task 2: EDA"
 python task2_eda.py
