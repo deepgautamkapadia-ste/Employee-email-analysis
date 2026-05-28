@@ -198,10 +198,3 @@ Task 1 now defaults to a local Hugging Face causal model and uses the exact chat
 - Use the ranking plots to identify consistently positive contributors and consistently strained months.
 - If you need more sensitive flight-risk detection, lower the threshold or widen the rolling window logic.
 
-## Optional Improvements
-
-- Save API call failures to a retry log.
-- Add caching to disk for repeated message texts.
-- Add more features for predictive modeling, such as response time or communication network metrics.
-- Replace the LLM sentiment step with a local transformer pipeline when API access is not desired.
-- Add a progress log so long Task 1 runs can be monitored outside the console.
